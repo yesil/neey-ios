@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2820CD302D2C20DD0079ABF0 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2820CD2D2D2C20DD0079ABF0 /* QRScannerView.swift */; };
+		2820CD312D2C20DD0079ABF0 /* MessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2820CD2E2D2C20DD0079ABF0 /* MessageView.swift */; };
+		2820CD322D2C20DD0079ABF0 /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2820CD2F2D2C20DD0079ABF0 /* ChatViewModel.swift */; };
+		2820CD342D2C220C0079ABF0 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2820CD332D2C220C0079ABF0 /* KeychainService.swift */; };
 		28F200EE2D2C20740016D6BD /* NeeyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28F200ED2D2C20740016D6BD /* NeeyApp.swift */; };
 		28F200F02D2C20740016D6BD /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28F200EF2D2C20740016D6BD /* ContentView.swift */; };
 		28F200F22D2C20740016D6BD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 28F200F12D2C20740016D6BD /* Assets.xcassets */; };
@@ -34,6 +38,10 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		2820CD2D2D2C20DD0079ABF0 /* QRScannerView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
+		2820CD2E2D2C20DD0079ABF0 /* MessageView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MessageView.swift; sourceTree = "<group>"; };
+		2820CD2F2D2C20DD0079ABF0 /* ChatViewModel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
+		2820CD332D2C220C0079ABF0 /* KeychainService.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
 		28F200EA2D2C20740016D6BD /* Neey.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Neey.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		28F200ED2D2C20740016D6BD /* NeeyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeeyApp.swift; sourceTree = "<group>"; };
 		28F200EF2D2C20740016D6BD /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -94,6 +102,10 @@
 		28F200EC2D2C20740016D6BD /* Neey */ = {
 			isa = PBXGroup;
 			children = (
+				2820CD332D2C220C0079ABF0 /* KeychainService.swift */,
+				2820CD2F2D2C20DD0079ABF0 /* ChatViewModel.swift */,
+				2820CD2E2D2C20DD0079ABF0 /* MessageView.swift */,
+				2820CD2D2D2C20DD0079ABF0 /* QRScannerView.swift */,
 				28F200ED2D2C20740016D6BD /* NeeyApp.swift */,
 				28F200EF2D2C20740016D6BD /* ContentView.swift */,
 				28F200F12D2C20740016D6BD /* Assets.xcassets */,
@@ -257,8 +269,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2820CD312D2C20DD0079ABF0 /* MessageView.swift in Sources */,
 				28F200F02D2C20740016D6BD /* ContentView.swift in Sources */,
+				2820CD302D2C20DD0079ABF0 /* QRScannerView.swift in Sources */,
+				2820CD322D2C20DD0079ABF0 /* ChatViewModel.swift in Sources */,
 				28F200EE2D2C20740016D6BD /* NeeyApp.swift in Sources */,
+				2820CD342D2C220C0079ABF0 /* KeychainService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -347,6 +363,8 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "To read the api key as QR code";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "For text to speech";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
@@ -404,6 +422,8 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "To read the api key as QR code";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "For text to speech";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
@@ -422,8 +442,10 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Neey/Preview Content\"";
+				DEVELOPMENT_TEAM = RUP996VQK8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "To enable talk mode";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -450,8 +472,10 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Neey/Preview Content\"";
+				DEVELOPMENT_TEAM = RUP996VQK8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "To enable talk mode";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
