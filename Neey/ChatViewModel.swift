@@ -6,7 +6,13 @@ import AVFAudio
 class ChatViewModel: ObservableObject {
     @Published var messages: [Message] = []
     @Published var isProcessing = false
-    @Published var selectedLanguage: Language = .english
+    @Published var selectedLanguage: Language = .english {
+        didSet {
+            // Save language preference when it changes
+            UserDefaults.standard.set(selectedLanguage.rawValue, forKey: "selected_language")
+        }
+    }
+    @Published var isRecording = false
     
     private var speechRecognizer: SFSpeechRecognizer?
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
@@ -15,12 +21,41 @@ class ChatViewModel: ObservableObject {
     private var currentTranscription: String = ""
     private var isCancelled = false
     private var streamingMessage: Message?
+    private var silenceTimer: Timer?
+    private let silenceThreshold: TimeInterval = 1.0  // Changed from 0.5 to 1.0 second
+    private let speechSynthesizer = AVSpeechSynthesizer()
+    
+    private var mainSystemPrompt: String {
+        """
+        You are a helpful German teacher.
+        Respond with language learning material in german in a concise, clear, and structured format with translations in \(selectedLanguage.rawValue).
+        -
+        Below are the only sections you must include in your response:
+        1. **Wortschatz:** Provide 5 examples with definite articles in relation to the user's message. Do not number items.
+        e.g: - Der Hund - the dog
+        2. **Sätze:** Provide 5 examples in relation to the user's message with translations. Do not number items.
+        e.g: - Der Hund ist süß. - The dog is cute.
+        3. **Konjugation:** Include the most important conjugations in Präsens, Perfekt, and Präteritum for the most significant verb related to the topic, inlined.
+        -
+        End your response with three suitable follow-up prompts (not in question form) in \(selectedLanguage.rawValue), formatted like this:
+        NEXT PROMPTS:
+        1) ...
+        2) ...
+        3) ...
+        """
+    }
     
     var hasAPIKey: Bool {
         (try? KeychainService.shared.load(service: "com.neey.app", account: "openai_api_key")) != nil
     }
     
     init() {
+        // Load saved language preference
+        if let savedLanguage = UserDefaults.standard.string(forKey: "selected_language"),
+           let language = Language(rawValue: savedLanguage) {
+            selectedLanguage = language
+        }
+        
         loadMessages()
         updateSpeechRecognizer()
         requestSpeechAuthorization()
@@ -101,26 +136,10 @@ class ChatViewModel: ObservableObject {
             return
         }
         
-        let systemPrompt = """
-            You are a helpful German teacher.
-            Respond with language learning content in German in a concise, clear, and structured format with translations in the same language as the user's message.
-            -
-            Below are the only sections you must include in your response:
-            1. **Wortschatz:** Provide 5 examples in relation to the user's message.
-            2. **Sätze:** Provide 5 examples in relation to the user's message.
-            3. **Konjugation:** Include the most important conjugations in Präsens, Perfekt, and Präteritum for the most significant verb related to the topic, inlined.
-            -
-            End your response with three suitable follow-up prompts in the same language as the user's message, formatted like this:
-            NEXT QUESTIONS:
-            1) ...
-            2) ...
-            3) ...
-            """
-        
         let apiMessages = messages.dropLast().map { ["role": $0.type == .sent ? "user" : "assistant", "content": $0.text] }
         let requestBody: [String: Any] = [
             "model": "gpt-4o",
-            "messages": [["role": "system", "content": systemPrompt]] + apiMessages,
+            "messages": [["role": "system", "content": mainSystemPrompt]] + apiMessages,
             "temperature": 0.9,
             "stream": true
         ]
@@ -210,7 +229,10 @@ class ChatViewModel: ObservableObject {
     }
     
     func startRecording() {
-        // Reset flags for new session
+        // First ensure any existing recording is properly cleaned up
+        cleanupRecording()
+        
+        isRecording = true
         isCancelled = false
         currentTranscription = ""
         streamingMessage = nil
@@ -236,6 +258,16 @@ class ChatViewModel: ObservableObject {
             guard let self = self else { return }
             if let result = result {
                 self.currentTranscription = result.bestTranscription.formattedString
+                
+                self.silenceTimer?.invalidate()
+                self.silenceTimer = Timer.scheduledTimer(withTimeInterval: self.silenceThreshold, repeats: false) { [weak self] _ in
+                    guard let self = self else { return }
+                    if self.isRecording {
+                        Task { @MainActor in
+                            self.stopRecording()
+                        }
+                    }
+                }
             }
         }
         
@@ -248,21 +280,35 @@ class ChatViewModel: ObservableObject {
         try? audioEngine.start()
     }
     
-    func stopRecording() {
-        audioEngine.stop()
-        audioEngine.inputNode.removeTap(onBus: 0)
+    private func cleanupRecording() {
+        silenceTimer?.invalidate()
+        silenceTimer = nil
+        
+        if audioEngine.isRunning {
+            audioEngine.stop()
+            if audioEngine.inputNode.numberOfInputs > 0 {
+                audioEngine.inputNode.removeTap(onBus: 0)
+            }
+        }
+        
         recognitionRequest?.endAudio()
         recognitionTask?.cancel()
+        recognitionRequest = nil
+        recognitionTask = nil
+        
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+    
+    func stopRecording() {
+        // First cleanup the recording session
+        cleanupRecording()
+        isRecording = false
         
         if !currentTranscription.isEmpty {
             sendMessage(currentTranscription)
         }
         
-        recognitionRequest = nil
-        recognitionTask = nil
         currentTranscription = ""
-        
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
     
     private func handleTranscription(_ text: String) {
@@ -272,31 +318,70 @@ class ChatViewModel: ObservableObject {
     private func requestSpeechAuthorization() {
         SFSpeechRecognizer.requestAuthorization { _ in }
     }
+    
+    func cancelRecording() {
+        cleanupRecording()
+        isRecording = false
+        currentTranscription = ""
+    }
+    
+    func speakText(_ text: String) {
+        // Stop any ongoing speech
+        if speechSynthesizer.isSpeaking {
+            speechSynthesizer.stopSpeaking(at: .immediate)
+        }
+        
+        // Create utterance with the correct language
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.voice = AVSpeechSynthesisVoice(language: "de-DE") // German voice
+        utterance.rate = 0.4  // Even slower rate for clearer pronunciation
+        utterance.pitchMultiplier = 1.0
+        utterance.volume = 1.0
+        
+        // Configure audio session for playback
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            print("Failed to configure audio session:", error)
+        }
+        
+        speechSynthesizer.speak(utterance)
+    }
 }
 
 enum Language: String, CaseIterable {
-    case turkish = "Turkish"
     case english = "English"
+    case turkish = "Turkish"
     case french = "French"
-    case german = "German"
+    case romanian = "Romanian"
+    case italian = "Italian"
+    case spanish = "Spanish"
+    case polish = "Polish"
     case arabic = "العربية"
     
     var locale: Locale {
         switch self {
-        case .turkish: return Locale(identifier: "tr-TR")
         case .english: return Locale(identifier: "en-US")
+        case .turkish: return Locale(identifier: "tr-TR")
         case .french: return Locale(identifier: "fr-FR")
-        case .german: return Locale(identifier: "de-DE")
+        case .romanian: return Locale(identifier: "ro-RO")
+        case .italian: return Locale(identifier: "it-IT")
+        case .spanish: return Locale(identifier: "es-ES")
+        case .polish: return Locale(identifier: "pl-PL")
         case .arabic: return Locale(identifier: "ar-SA")
         }
     }
     
     var flag: String {
         switch self {
-        case .turkish: return "🇹🇷"
         case .english: return "🇺🇸"
+        case .turkish: return "🇹🇷"
         case .french: return "🇫🇷"
-        case .german: return "🇩🇪"
+        case .romanian: return "🇷🇴"
+        case .italian: return "🇮🇹"
+        case .spanish: return "🇪🇸"
+        case .polish: return "🇵🇱"
         case .arabic: return "🇸🇦"
         }
     }

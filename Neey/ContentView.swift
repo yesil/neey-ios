@@ -3,7 +3,6 @@ import AVFoundation
 
 struct ContentView: View {
     @StateObject private var viewModel = ChatViewModel()
-    @State private var isRecording = false
     @State private var showingAPIKeyAlert = false
     @State private var apiKeyInput = ""
     @State private var showingScanner = false
@@ -17,9 +16,11 @@ struct ContentView: View {
                     ScrollView {
                         LazyVStack(spacing: 12) {
                             ForEach(viewModel.messages) { message in
-                                MessageView(message: message, onPromptTap: { prompt in
-                                    viewModel.sendMessage(prompt)
-                                })
+                                MessageView(message: message, 
+                                          onPromptTap: { prompt in
+                                              viewModel.sendMessage(prompt)
+                                          },
+                                          viewModel: viewModel)
                                 .id(message.id)
                             }
                         }
@@ -31,7 +32,7 @@ struct ContentView: View {
                         }
                     }
                 }
-                
+                    
                 HStack {
                     Spacer()
                     
@@ -48,30 +49,34 @@ struct ContentView: View {
                     }
                     
                     if viewModel.hasAPIKey {
-                        Button(action: {}) {
+                        Button(action: {
+                            if viewModel.isRecording {
+                                viewModel.cancelRecording()
+                            } else {
+                                viewModel.startRecording()
+                            }
+                        }) {
                             HStack(spacing: 4) {
-                                Image(systemName: isRecording ? "mic.fill" : "mic")
+                                Image(systemName: viewModel.isRecording ? "xmark" : "mic")
                                     .font(.system(size: 24))
-                                    .foregroundColor(isRecording ? .red : .blue)
-                                Text(viewModel.selectedLanguage.flag)
-                                    .font(.system(size: 24))
+                                    .foregroundColor(viewModel.isRecording ? .yellow : .blue)
+                                if !viewModel.isRecording {
+                                    Text(viewModel.selectedLanguage.flag)
+                                        .font(.system(size: 24))
+                                }
                             }
                             .frame(width: 90, height: 60)
                             .background(
                                 RoundedRectangle(cornerRadius: 30)
-                                    .stroke(isRecording ? Color.red : Color.blue, lineWidth: 2)
+                                    .stroke(viewModel.isRecording ? Color.yellow : Color.blue, lineWidth: 2)
                             )
                         }
                         .simultaneousGesture(
                             LongPressGesture(minimumDuration: 0.5)
                                 .onEnded { _ in
-                                    showingLanguageMenu = true
-                                }
-                        )
-                        .simultaneousGesture(
-                            TapGesture()
-                                .onEnded {
-                                    toggleRecording()
+                                    if !viewModel.isRecording {
+                                        showingLanguageMenu = true
+                                    }
                                 }
                         )
                         .confirmationDialog("Select Language", isPresented: $showingLanguageMenu, titleVisibility: .visible) {
@@ -122,11 +127,8 @@ struct ContentView: View {
     }
     
     private func toggleRecording() {
-        isRecording.toggle()
-        if isRecording {
+        if !viewModel.isRecording {
             viewModel.startRecording()
-        } else {
-            viewModel.stopRecording()
         }
     }
 } 

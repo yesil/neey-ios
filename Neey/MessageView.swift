@@ -1,65 +1,120 @@
 import SwiftUI
 
+struct SpeakableText: View {
+    let text: String
+    let viewModel: ChatViewModel
+    
+    var body: some View {
+        HStack(alignment: .center, spacing: 8) {
+            Text(text)
+            Button(action: {
+                viewModel.speakText(text)
+            }) {
+                Image(systemName: "speaker.wave.2")
+                    .font(.system(size: 14))
+                    .foregroundColor(.blue)
+                    .padding(4)
+                    .background(
+                        Circle()
+                            .fill(Color.blue.opacity(0.1))
+                    )
+            }
+        }
+    }
+}
+
+struct TextView: View {
+    let sentence: String
+    let translation: String
+    let viewModel: ChatViewModel
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            SpeakableText(text: sentence, viewModel: viewModel)
+            Text(translation)
+                .font(.subheadline)
+                .foregroundColor(.gray)
+        }
+    }
+}
+
 struct MessageView: View {
     @ObservedObject var message: Message
     var onPromptTap: ((String) -> Void)?
+    @ObservedObject var viewModel: ChatViewModel
     
     var body: some View {
-        VStack(alignment: message.type == MessageType.sent ? .trailing : .leading, spacing: 8) {
-            if message.type == MessageType.received {
-                VStack(alignment: .leading, spacing: 12) {
-                    ForEach(message.mainContent.components(separatedBy: "\n"), id: \.self) { line in
-                        if !line.contains("NEXT QUESTIONS:") {
-                            if line.contains("**Wortschatz:**") || line.contains("**Sätze:**") || line.contains("**Konjugation:**") {
-                                Text(line.replacingOccurrences(of: "**", with: ""))
-                                    .font(.headline)
-                                    .foregroundColor(.blue)
-                            } else {
-                                Text(line)
+        HStack(alignment: .bottom, spacing: 8) {           
+            VStack(alignment: message.type == MessageType.sent ? .trailing : .leading, spacing: 8) {
+                if message.type == MessageType.received {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(Array(message.mainContent.components(separatedBy: "\n").enumerated()), id: \.offset) { index, line in
+                            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+                            if !trimmedLine.isEmpty && !trimmedLine.contains("NEXT PROMPTS:") && !trimmedLine.hasPrefix("1)") && !trimmedLine.hasPrefix("2)") && !trimmedLine.hasPrefix("3)") {
+                                if trimmedLine.contains("**Wortschatz:**") || trimmedLine.contains("**Sätze:**") || trimmedLine.contains("**Konjugation") {
+                                    Text(trimmedLine.replacingOccurrences(of: "**", with: ""))
+                                        .font(.headline)
+                                        .foregroundColor(.blue)
+                                } else if trimmedLine.hasPrefix("- ") {
+                                    let contentLine = String(trimmedLine.dropFirst(2))  // Remove "- " prefix
+                                    if let separatorRange = contentLine.range(of: " - ") {
+                                        let sentence = String(contentLine[..<separatorRange.lowerBound])
+                                        let translation = String(contentLine[separatorRange.upperBound...])
+                                        Group {
+                                            if message.mainContent.contains("**Sätze:**") || message.mainContent.contains("**Wortschatz:**") {
+                                                TextView(
+                                                    sentence: sentence.trimmingCharacters(in: .whitespaces),
+                                                    translation: translation.trimmingCharacters(in: .whitespaces),
+                                                    viewModel: viewModel
+                                                )
+                                            } else {
+                                                Text(contentLine)
+                                            }
+                                        }
+                                    } else {
+                                        Text(contentLine)
+                                    }
+                                } else {
+                                    Text(trimmedLine)
+                                }
                             }
                         }
                     }
-                }
-                .textSelection(.enabled)
-                .padding()
-                .background(Color.gray.opacity(0.2))
-                .cornerRadius(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                
-                if !message.followUpQuestions.isEmpty {
-                    Text("Follow-up Questions:")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-                        .padding(.top, 8)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    VStack(spacing: 8) {
-                        ForEach(message.followUpQuestions, id: \.self) { question in
-                            Button(action: {
-                                onPromptTap?(question)
-                            }) {
-                                Text(question)
-                                    .foregroundColor(.blue)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 8)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 20)
-                                            .stroke(Color.blue, lineWidth: 1)
-                                    )
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-                    }
-                }
-            } else {
-                Text(message.text)
                     .textSelection(.enabled)
                     .padding()
-                    .background(Color.blue.opacity(0.2))
+                    .background(Color.gray.opacity(0.2))
                     .cornerRadius(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    if !message.followUpPrompts.isEmpty {
+                        VStack(spacing: 8) {
+                            ForEach(message.followUpPrompts, id: \.self) { prompt in
+                                Button(action: {
+                                    onPromptTap?(prompt)
+                                }) {
+                                    Text(prompt)
+                                        .foregroundColor(.blue)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 8)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 20)
+                                                .stroke(Color.blue, lineWidth: 1)
+                                        )
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Text(message.text)
+                        .textSelection(.enabled)
+                        .padding()
+                        .background(Color.blue.opacity(0.2))
+                        .cornerRadius(16)
+                }
             }
+            .frame(maxWidth: .infinity, alignment: message.type == MessageType.sent ? .trailing : .leading)
         }
-        .frame(maxWidth: .infinity, alignment: message.type == MessageType.sent ? .trailing : .leading)
         .padding(.horizontal)
     }
 }
@@ -74,7 +129,7 @@ class Message: ObservableObject, Identifiable, Codable, Equatable {
     let type: MessageType
     let timestamp: Date
     @Published var mainContent: String = ""
-    @Published var followUpQuestions: [String] = []
+    @Published var followUpPrompts: [String] = []
     
     init(id: UUID = UUID(), text: String, type: MessageType, timestamp: Date = Date()) {
         self.id = id
@@ -85,22 +140,23 @@ class Message: ObservableObject, Identifiable, Codable, Equatable {
     }
     
     private func updateContent() {
-        // Parse follow-up questions if present
-        if type == .received && text.contains("NEXT QUESTIONS:") {
-            let parts = text.split(separator: "NEXT QUESTIONS:")
+        // Parse follow-up prompts if present
+        if type == .received && text.contains("NEXT PROMPTS:") {
+            let parts = text.split(separator: "NEXT PROMPTS:")
             self.mainContent = String(parts[0]).trimmingCharacters(in: .whitespacesAndNewlines)
+            
             if parts.count > 1 {
-                self.followUpQuestions = parts[1]
+                self.followUpPrompts = parts[1]
                     .split(separator: "\n")
                     .map { $0.trimmingCharacters(in: .whitespaces) }
                     .filter { $0.matches(of: #/^\d+\)/#).count > 0 }
                     .map { $0.replacing(#/^\d+\)\s*/#, with: "") }
             } else {
-                self.followUpQuestions = []
+                self.followUpPrompts = []
             }
         } else {
             self.mainContent = text
-            self.followUpQuestions = []
+            self.followUpPrompts = []
         }
     }
     
@@ -109,7 +165,7 @@ class Message: ObservableObject, Identifiable, Codable, Equatable {
     }
     
     enum CodingKeys: String, CodingKey {
-        case id, text, type, timestamp, mainContent, followUpQuestions
+        case id, text, type, timestamp, mainContent, followUpPrompts
     }
     
     required init(from decoder: Decoder) throws {
@@ -119,7 +175,7 @@ class Message: ObservableObject, Identifiable, Codable, Equatable {
         type = try container.decode(MessageType.self, forKey: .type)
         timestamp = try container.decode(Date.self, forKey: .timestamp)
         mainContent = try container.decode(String.self, forKey: .mainContent)
-        followUpQuestions = try container.decode([String].self, forKey: .followUpQuestions)
+        followUpPrompts = try container.decode([String].self, forKey: .followUpPrompts)
     }
     
     func encode(to encoder: Encoder) throws {
@@ -129,7 +185,7 @@ class Message: ObservableObject, Identifiable, Codable, Equatable {
         try container.encode(type, forKey: .type)
         try container.encode(timestamp, forKey: .timestamp)
         try container.encode(mainContent, forKey: .mainContent)
-        try container.encode(followUpQuestions, forKey: .followUpQuestions)
+        try container.encode(followUpPrompts, forKey: .followUpPrompts)
     }
 }
 
