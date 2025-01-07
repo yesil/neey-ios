@@ -28,7 +28,7 @@ class ChatViewModel: ObservableObject {
     private var mainSystemPrompt: String {
         """
         You are a helpful German teacher.
-        Respond with language learning material in german in a concise, clear, and structured format with translations in \(selectedLanguage.rawValue).
+        Respond with language learning material in german for B1 levelin a concise, clear, and structured format with translations in \(selectedLanguage.rawValue).
         -
         Below are the only sections you must include in your response:
         1. **Wortschatz:** Provide 5 examples with definite articles in relation to the user's message. Do not number items.
@@ -140,7 +140,7 @@ class ChatViewModel: ObservableObject {
         let requestBody: [String: Any] = [
             "model": "gpt-4o",
             "messages": [["role": "system", "content": mainSystemPrompt]] + apiMessages,
-            "temperature": 0.9,
+            "temperature": 0.1,
             "stream": true
         ]
         
